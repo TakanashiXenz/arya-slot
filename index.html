@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AryaBabi slot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        .font-numeric {
+            font-family: 'Roboto Mono', monospace;
+        }
+        @keyframes spin {
+            0% { transform: translateY(0); filter: blur(4px); }
+            100% { transform: translateY(-100%); filter: blur(4px); }
+        }
+        .reel-container {
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #4a5568;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+        .reel {
+            display: flex;
+            flex-direction: column;
+            font-size: 3rem;
+            transition: transform 0.3s ease-out;
+        }
+        .reel.spinning .reel-content {
+            animation: spin 0.15s linear infinite;
+        }
+        .reel-content { padding: 1rem 0; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-spin {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0,0,0,0.2);
+        }
+        .btn-spin:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3), inset 0 -1px 2px rgba(0,0,0,0.2);
+        }
+        .btn-spin:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: translateY(0);
+        }
+        @media (min-width: 640px) { .reel { font-size: 4rem; } }
+        @media (min-width: 768px) { .reel { font-size: 5rem; } }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-2xl p-6 border border-gray-700">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-yellow-400 tracking-wider">Arya Slot</h1>
+            <p class="text-gray-400 text-sm"></p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6 text-center">
+            <div class="glass-panel p-4 rounded-lg">
+                <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Saldo Anda</h2>
+                <p id="balance-display" class="font-numeric text-2xl font-bold text-green-400">1000</p>
+            </div>
+            <div class="glass-panel p-4 rounded-lg">
+                <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Taruhan</h2>
+                <p id="bet-display" class="font-numeric text-2xl font-bold text-blue-400">10</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-6 h-40 sm:h-48 md:h-56">
+            <div class="reel-container"><div id="reel1" class="reel"><div class="reel-content">🍒</div></div></div>
+            <div class="reel-container"><div id="reel2" class="reel"><div class="reel-content">🍋</div></div></div>
+            <div class="reel-container"><div id="reel3" class="reel"><div class="reel-content">🍊</div></div></div>
+        </div>
+
+        <div id="message-display" class="text-center h-8 mb-4 text-xl font-bold text-yellow-300 transition-opacity duration-300">
+            Selamat Bermain!
+        </div>
+
+        <div class="flex items-center justify-center gap-4 mb-6">
+            <button id="decrease-bet" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full">-</button>
+            <span class="text-lg font-semibold">Ubah Taruhan</span>
+            <button id="increase-bet" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">+</button>
+        </div>
+
+        <button id="spin-button" class="btn-spin w-full bg-green-600 hover:bg-green-700 text-white font-bold text-2xl py-4 rounded-lg uppercase tracking-widest">
+            Putar
+        </button>
+    </div>
+    
+    <div id="game-over-overlay" class="hidden fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-50 p-4">
+        <h2 class="text-7xl md:text-9xl font-black text-red-600 animate-pulse">YAH ABIS</h2>
+    </div>
+
+    <audio id="action-audio" src="https://files.catbox.moe/6s1usz.opus" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const balanceDisplay = document.getElementById('balance-display');
+            const betDisplay = document.getElementById('bet-display');
+            const messageDisplay = document.getElementById('message-display');
+            const spinButton = document.getElementById('spin-button');
+            const increaseBetButton = document.getElementById('increase-bet');
+            const decreaseBetButton = document.getElementById('decrease-bet');
+            const reels = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+            const gameOverOverlay = document.getElementById('game-over-overlay');
+            const actionAudio = document.getElementById('action-audio');
+
+            const symbols = ['❌', '🍒', '🍋', '🍊', '🍇', '🔔', '💎', '7️⃣'];
+            const payouts = { '🍒': 5, '🍋': 5, '🍊': 5, '🍇': 10, '🔔': 20, '💎': 50, '7️⃣': 100 };
+            const weightedSymbols = [
+                ...Array(50).fill('❌'), ...Array(15).fill('🍒'), ...Array(15).fill('🍋'),
+                ...Array(15).fill('🍊'), ...Array(8).fill('🍇'), ...Array(5).fill('🔔'),
+                ...Array(3).fill('💎'), ...Array(1).fill('7️⃣'),
+            ];
+
+            const initialBalance = 1000;
+            const minBet = 10;
+            let balance = initialBalance;
+            let betAmount = 10;
+            let isSpinning = false;
+            let reelResults = [];
+
+            function getRandomWeightedSymbol() {
+                return weightedSymbols[Math.floor(Math.random() * weightedSymbols.length)];
+            }
+
+            function updateDisplay() {
+                balanceDisplay.textContent = balance;
+                betDisplay.textContent = betAmount;
+            }
+            
+            function showMessage(text, colorClass = 'text-yellow-300', duration = 3000) {
+                messageDisplay.textContent = text;
+                messageDisplay.className = `text-center h-8 mb-4 text-xl font-bold transition-opacity duration-300 ${colorClass}`;
+                messageDisplay.style.opacity = '1';
+                setTimeout(() => { messageDisplay.style.opacity = '0'; }, duration);
+            }
+
+            function playSound() {
+                actionAudio.currentTime = 0;
+                actionAudio.play().catch(e => console.error("Audio play failed:", e));
+            }
+
+            function triggerGameOver() {
+                gameOverOverlay.classList.remove('hidden');
+                playSound();
+                spinButton.disabled = true;
+                increaseBetButton.disabled = true;
+                decreaseBetButton.disabled = true;
+            }
+
+            function spin() {
+                if (isSpinning) return;
+                
+                if (balance < betAmount) {
+                    showMessage('Saldo tidak cukup!', 'text-red-500');
+                    triggerGameOver();
+                    return;
+                }
+
+                isSpinning = true;
+                spinButton.disabled = true;
+                spinButton.textContent = 'Memutar...';
+                balance -= betAmount;
+                updateDisplay();
+                showMessage('Semoga Beruntung!', 'text-blue-300', 2000);
+                reelResults = [];
+
+                reels.forEach(reel => {
+                    const reelContent = reel.querySelector('.reel-content') || document.createElement('div');
+                    reelContent.className = 'reel-content';
+                    reel.innerHTML = '';
+                    const symbolColumn = document.createElement('div');
+                    for(let i=0; i<10; i++){ symbolColumn.innerHTML += `<div>${symbols[Math.floor(Math.random() * symbols.length)]}</div>`; }
+                    reelContent.appendChild(symbolColumn);
+                    reel.appendChild(reelContent);
+                    reel.classList.add('spinning');
+                });
+                
+                setTimeout(() => {
+                    reels.forEach((reel, index) => {
+                        setTimeout(() => stopReel(reel), index * 400); 
+                    });
+                    setTimeout(checkWin, 400 * reels.length + 100);
+                }, 1500);
+            }
+
+            function stopReel(reel) {
+                reel.classList.remove('spinning');
+                const randomSymbol = getRandomWeightedSymbol(); 
+                reelResults.push(randomSymbol);
+                reel.innerHTML = `<div class="reel-content">${randomSymbol}</div>`;
+            }
+
+            function checkWin() {
+                const [r1, r2, r3] = reelResults;
+                let winAmount = 0;
+                
+                if (r1 !== '❌' && r1 === r2 && r2 === r3) {
+                    winAmount = betAmount * payouts[r1];
+                    showMessage(`GOKIL! Menang ${winAmount}!`, 'text-green-400');
+                    playSound();
+                } else {
+                    showMessage('Dongo', 'text-red-400');
+                }
+
+                if (winAmount > 0) {
+                    balance += winAmount;
+                }
+                
+                updateDisplay();
+                isSpinning = false;
+                spinButton.disabled = false;
+                spinButton.textContent = 'Putar';
+                
+                if (balance < minBet) {
+                    triggerGameOver();
+                }
+            }
+            
+            function adjustBet(amount) {
+                if (isSpinning) return;
+                const newBet = betAmount + amount;
+                if (newBet >= minBet && newBet <= balance) {
+                    betAmount = newBet;
+                    updateDisplay();
+                } else if (newBet > balance) {
+                    betAmount = balance;
+                    updateDisplay();
+                }
+            }
+
+            spinButton.addEventListener('click', spin);
+            increaseBetButton.addEventListener('click', () => adjustBet(10));
+            decreaseBetButton.addEventListener('click', () => adjustBet(-10));
+
+            updateDisplay();
+        });
+    </script>
+
+</body>
+</html>
